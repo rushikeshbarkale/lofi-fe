@@ -1,10 +1,9 @@
 import "./App.css";
 import MusicPlayer from "./components/MusicPlayer";
 
-const App = () => {
+const App: React.FC = () => {
   return (
     <div>
-      <h1>Isekai Lofi Music Player</h1>
       <MusicPlayer />
     </div>
   );
