@@ -11,9 +11,9 @@ export interface Video {
     channelTitle: string;
 }
 
-export const fetchMusicVideos = async (): Promise<Video[]> => {
+export const fetchMusicVideos = async (isGenshin: boolean): Promise<Video[]> => {
     try {
-        const response = await axios.get<{ videos: Video[] }>(API_URL);
+        const response = await axios.get<{ videos: Video[] }>(`${API_URL}?genshin=${isGenshin}`);
         return response.data.videos;
     } catch (error) {
         console.error("Error fetching music videos:", error);
@@ -22,12 +22,12 @@ export const fetchMusicVideos = async (): Promise<Video[]> => {
 };
 
 //specific category/theme
-export const fetchMusicByTheme = async (theme: string): Promise<Video[]> => {
-    try {
-        const response = await axios.get<{ videos: Video[] }>(`${API_URL}?query=${theme}`);
-        return response.data.videos;
-    } catch (error) {
-        console.error("Error fetching music videos:", error);
-        return [];
-    }
-};
+// export const fetchMusicByTheme = async (theme: string): Promise<Video[]> => {
+//     try {
+//         const response = await axios.get<{ videos: Video[] }>(`${API_URL}?query=${theme}`);
+//         return response.data.videos;
+//     } catch (error) {
+//         console.error("Error fetching music videos:", error);
+//         return [];
+//     }
+// };

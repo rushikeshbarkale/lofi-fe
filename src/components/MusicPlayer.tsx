@@ -214,7 +214,7 @@
 
 //* v3 ######################################################################
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { Pause, PlayCircle, SkipForward } from "lucide-react";
+import { Pause, PlayCircle, SkipForward, SkipBack } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { fetchMusicVideos, Video } from "../apis/youtube";
 import { images } from "../constants/images";
@@ -255,6 +255,7 @@ const MusicPlayer = () => {
   const [currentBgIndex, setCurrentBgIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [loading, setLoading] = useState(true);
+  const [theme, setTheme] = useState<"genshin" | "fantasy">("fantasy");
   const [error, setError] = useState<string | null>(null);
   const playerRef = useRef<any>(null);
 
@@ -280,7 +281,7 @@ const MusicPlayer = () => {
     const loadMusic = async () => {
       try {
         setLoading(true);
-        const data = await fetchMusicVideos();
+        const data = await fetchMusicVideos(theme === "genshin"); // Fetch based on theme
         setVideos(data);
         setError(null);
       } catch (err) {
@@ -290,7 +291,7 @@ const MusicPlayer = () => {
       }
     };
     loadMusic();
-  }, []);
+  }, [theme]);
 
   useEffect(() => {
     const loadYouTubeAPI = () => {
@@ -304,7 +305,6 @@ const MusicPlayer = () => {
           if (window.YT && window.YT.Player) {
             loadPlayer();
           } else {
-            // Retry if YT.Player is still not available
             const checkInterval = setInterval(() => {
               if (window.YT && window.YT.Player) {
                 clearInterval(checkInterval);
@@ -318,6 +318,10 @@ const MusicPlayer = () => {
       }
     };
 
+    window.onYouTubeIframeAPIReady = () => {
+      loadPlayer();
+    };
+
     loadYouTubeAPI();
   }, [videos, currentIndex]);
 
@@ -328,10 +332,8 @@ const MusicPlayer = () => {
       playerRef.current &&
       typeof playerRef.current.loadVideoById === "function"
     ) {
-      // Player already exists, load new video
       playerRef.current.loadVideoById(videos[currentIndex].videoId);
     } else {
-      // Ensure YouTube API is ready before creating player
       if (window.YT && window.YT.Player) {
         playerRef.current = new window.YT.Player("youtube-player", {
           height: "0",
@@ -343,9 +345,14 @@ const MusicPlayer = () => {
             modestbranding: 1,
           },
           events: {
-            onReady: () => {
-              playerRef.current.playVideo();
-              setIsPlaying(true);
+            onReady: (event: any) => {
+              playerRef.current = event.target;
+              if (typeof playerRef.current.playVideo === "function") {
+                playerRef.current.playVideo();
+                setIsPlaying(true);
+              } else {
+                console.warn("YouTube Player not fully ready yet.");
+              }
             },
             onStateChange: (event: any) => {
               if (event.data === window.YT.PlayerState.ENDED) {
@@ -354,22 +361,44 @@ const MusicPlayer = () => {
             },
           },
         });
+      } else {
+        console.warn("⚠️ YT.Player is not available yet.");
       }
     }
   }, [videos, currentIndex]);
 
   const playAudio = useCallback(() => {
-    playerRef.current?.playVideo();
-    setIsPlaying(true);
+    if (
+      playerRef.current &&
+      typeof playerRef.current.playVideo === "function"
+    ) {
+      playerRef.current.playVideo();
+      setIsPlaying(true);
+    } else {
+      console.warn("YouTube Player is not ready yet. Cannot play video.");
+    }
   }, []);
 
   const pauseAudio = useCallback(() => {
-    playerRef.current?.pauseVideo();
-    setIsPlaying(false);
+    if (
+      playerRef.current &&
+      typeof playerRef.current.pauseVideo === "function"
+    ) {
+      playerRef.current.pauseVideo();
+      setIsPlaying(false);
+    } else {
+      console.warn("YouTube Player is not ready yet. Cannot pause video.");
+    }
   }, []);
 
   const nextAudio = useCallback(() => {
     setCurrentIndex((prevIndex) => (prevIndex + 1) % videos.length);
+  }, [videos.length]);
+
+  const prevAudio = useCallback(() => {
+    setCurrentIndex((prevIndex) =>
+      prevIndex === 0 ? videos.length - 1 : prevIndex - 1
+    );
   }, [videos.length]);
 
   return (
@@ -410,9 +439,48 @@ const MusicPlayer = () => {
         )}
 
         <motion.div
+          className="relative mb-4 flex items-center space-x-2 bg-black/40 rounded-full px-4 py-2 backdrop-blur-md shadow-md"
+          whileHover={{ scale: 1.02 }}
+        >
+          <motion.button
+            onClick={() => setTheme("genshin")}
+            className={`px-3 py-1 text-xs font-medium rounded-lg transition ${
+              theme === "genshin"
+                ? "bg-white text-black shadow-md"
+                : "bg-transparent text-white hover:bg-white/10"
+            }`}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            Genshin
+          </motion.button>
+
+          <motion.button
+            onClick={() => setTheme("fantasy")}
+            className={`px-3 py-1 text-xs font-medium rounded-lg transition ${
+              theme === "fantasy"
+                ? "bg-white text-black shadow-md"
+                : "bg-transparent text-white hover:bg-white/10"
+            }`}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            Fantasy
+          </motion.button>
+        </motion.div>
+
+        <motion.div
           className="flex items-center gap-4 bg-black/50 rounded-full px-6 py-3"
           whileHover={{ scale: 1.02 }}
         >
+          <motion.button
+            onClick={prevAudio}
+            className="p-2 rounded-full hover:bg-white/10"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <SkipBack className="w-6 h-6" />
+          </motion.button>
           <motion.button
             onClick={isPlaying ? pauseAudio : playAudio}
             className="p-2 rounded-full hover:bg-white/10"
